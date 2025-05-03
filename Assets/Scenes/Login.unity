@@ -206,8 +206,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 860522440}
-        m_TargetAssemblyTypeName: Login, Assembly-CSharp
-        m_MethodName: ConfirmLogin
+        m_TargetAssemblyTypeName: LoginSet, Assembly-CSharp
+        m_MethodName: AttemptLogin
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1253,7 +1253,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 860522440}
-        m_TargetAssemblyTypeName: Login, Assembly-CSharp
+        m_TargetAssemblyTypeName: LoginSet, Assembly-CSharp
         m_MethodName: LoadData
         m_Mode: 1
         m_Arguments:
@@ -1725,17 +1725,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a721f77fd7eb0042bfff8ba7286b7d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nickname_field_login: {fileID: 1702995603}
   nickname_field_register: {fileID: 1209460927}
+  password_field_register: {fileID: 307326697}
+  nickname_field_login: {fileID: 1702995603}
+  password_field_login: {fileID: 563330995}
+  warning_text: {fileID: 682898121}
+  nameDisplay: {fileID: 1087820066}
+  loginPopup: {fileID: 1330737917}
   balance: 0
   highscore: 0
-  highscore_text: {fileID: 1487272245}
-  loginPopup: {fileID: 1330737917}
-  password_field_login: {fileID: 563330995}
-  password_field_register: {fileID: 307326697}
-  warning_text: {fileID: 682898121}
-  warning_text2: {fileID: 882444759}
-  nameDisplay: {fileID: 1087820066}
 --- !u!1 &862075816
 GameObject:
   m_ObjectHideFlags: 0
@@ -2809,7 +2807,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1330737918
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -4,57 +4,47 @@ using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
-using SFB;  // Include the StandaloneFileBrowser namespace
 
-public class Login : MonoBehaviour
+public class LoginSet : MonoBehaviour
 {
+    [Header("UI Fields")]
+    public InputField nickname_field_register;
+    public InputField password_field_register;
     public InputField nickname_field_login;
-        public InputField nickname_field_register;
-    private string nickname;
+    public InputField password_field_login;
+    public Text warning_text;
+    public Text nameDisplay;
+    public GameObject loginPopup;
+
+    [Header("Player Data")]
     public int balance;
     public int highscore;
-    public Text highscore_text;
-public GameObject loginPopup;
-private PlayerData loadedPlayerData;
-private string decryptedPassword;
 
-public InputField password_field_login;
-public InputField password_field_register;
-public Text warning_text;
-public Text warning_text2;
-public Text nameDisplay;
-private string password;
+    private PlayerData loadedPlayerData;
+    private string decryptedPassword;
+
+    // 🔷 WebGL file upload interface
+#if UNITY_WEBGL && !UNITY_EDITOR
+    [System.Runtime.InteropServices.DllImport("__Internal")]
+    private static extern void ShowFileUpload(string gameObjectName, string methodName);
+#endif
 
     void Start()
     {
-        loginPopup.SetActive(false);
-        // Load balance and highscore from PlayerPrefs
-        balance = PlayerPrefs.GetInt("Total", balance);
-        highscore = PlayerPrefs.GetInt("Record", highscore);
-        warning_text.text = null;
-        warning_text2.text = null;
+        // ✅ Null-safe welcome message
+        if (loadedPlayerData == null || string.IsNullOrEmpty(loadedPlayerData.nickname))
+        {
+            nameDisplay.text = "Welcome to BlackJack table\nPlayer";
+        }
+        else
+        {
+            nameDisplay.text = "Welcome to BlackJack table\n" + loadedPlayerData.nickname;
+        }
     }
-
-    // Method to update the nickname string whenever the input field changes
-public void Update()
-{
-    nickname = nickname_field_login.text;
-    password = password_field_login.text;
-    nickname = nickname_field_register.text;
-    password = password_field_register.text;
-    highscore_text.text = "Your Highscore:\n" + highscore.ToString() + "$";
-    nameDisplay.text = "Welcome to BlackJack table\n"+nickname;
-    if(nickname == null)
-    {
-        nickname = "Player";
-    }
-}
-
     public void LoadScene()
     {
         SceneManager.LoadScene("SampleScene");
     }
-    // Save the nickname, balance, and highscore to a JSON file
 public void SaveData()
 {
     string nameToSave = nickname_field_register.text;
@@ -78,7 +68,14 @@ public void SaveData()
     };
 
     string json = JsonUtility.ToJson(playerData);
-    var path = StandaloneFileBrowser.SaveFilePanel("Save Nickname", "", "PlayerData", "json");
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+    // WebGL-specific logic
+    string base64Json = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json));
+    Application.ExternalCall("DownloadFileFromUnity", base64Json, "PlayerData.json");
+#else
+    // Desktop-specific logic
+    var path = SFB.StandaloneFileBrowser.SaveFilePanel("Save Nickname", "", "PlayerData", "json");
 
     if (!string.IsNullOrEmpty(path))
     {
@@ -90,72 +87,84 @@ public void SaveData()
     {
         Debug.LogError("Save cancelled or path invalid!");
     }
+#endif
 }
 
+
+
+    // 🔷 WebGL file load trigger (use this instead of normal LoadData in WebGL)
 public void LoadData()
 {
-    var paths = StandaloneFileBrowser.OpenFilePanel("Load Nickname", "", "json", false);
+#if UNITY_WEBGL && !UNITY_EDITOR
+    // Trigger file upload dialog in browser (handled by .jslib)
+    Application.ExternalCall("ShowFileUpload", gameObject.name, "OnFileLoadedFromJS");
+#else
+    var paths = SFB.StandaloneFileBrowser.OpenFilePanel("Open Player Data", "", "json", false);
     if (paths.Length > 0 && !string.IsNullOrEmpty(paths[0]))
     {
-        string path = paths[0];
+        string json = File.ReadAllText(paths[0]);
+        LoadPlayerFromJson(json);
+    }
+    else
+    {
+        Debug.LogError("Load cancelled or path invalid!");
+    }
+#endif
+}
 
-        if (File.Exists(path))
+private void LoadPlayerFromJson(string json)
+{
+    loadedPlayerData = JsonUtility.FromJson<PlayerData>(json);
+    if (loadedPlayerData == null)
+    {
+        Debug.LogError("Failed to parse JSON.");
+        return;
+    }
+
+    decryptedPassword = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(loadedPlayerData.encryptedPassword));
+    loginPopup.SetActive(true);
+    Debug.Log("Player data loaded. Awaiting login credentials.");
+}
+public void OnFileLoadedFromJS(string base64Json)
+{
+    try
+    {
+        string json = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(base64Json));
+        LoadPlayerFromJson(json);
+    }
+    catch (System.Exception ex)
+    {
+        Debug.LogError("Failed to load player data from WebGL file: " + ex.Message);
+    }
+}
+    public void AttemptLogin()
+    {
+        string enteredName = nickname_field_login.text;
+        string enteredPassword = password_field_login.text;
+
+        if (loadedPlayerData == null)
         {
-string json = File.ReadAllText(path);
-loadedPlayerData = JsonUtility.FromJson<PlayerData>(json);
+            warning_text.text = "No data loaded.";
+            return;
+        }
 
-// Decrypt password into a separate field
-decryptedPassword = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(loadedPlayerData.encryptedPassword));
-Debug.Log(decryptedPassword);
-// Enable the login popup
-loginPopup.SetActive(true);
+        if (enteredName == loadedPlayerData.nickname && enteredPassword == decryptedPassword)
+        {
+            loginPopup.SetActive(false);
+            nameDisplay.text = "Welcome to BlackJack table\n" + loadedPlayerData.nickname;
         }
         else
         {
-            Debug.LogError("File does not exist!");
+            warning_text.text = "Incorrect name or password";
         }
     }
-    else
-    {
-        Debug.LogError("No file selected!");
-    }
-}
-public void ConfirmLogin()
-{
-    string enteredName = nickname_field_login.text;
-    string enteredPassword = password_field_login.text;
-
-    if (loadedPlayerData != null &&
-        enteredName == loadedPlayerData.nickname &&
-        enteredPassword == decryptedPassword)
-    {
-        balance = loadedPlayerData.balance;
-        highscore = loadedPlayerData.highscore;
-
-        PlayerPrefs.SetInt("Total", balance);
-        PlayerPrefs.SetInt("Record", highscore);
-        PlayerPrefs.Save();
-
-        highscore_text.text = "Your Highscore:\n" + highscore.ToString() + "$";
-        loginPopup.SetActive(false);
-        warning_text.text = "";
-        Debug.Log("Login successful. Data loaded.");
-    }
-    else
-    {
-        warning_text.text = "Incorrect name or password";
-        Debug.LogError("Incorrect name or password");
-    }
-}
-
 
     [System.Serializable]
-public class PlayerData
-{
-    public string nickname;
-    public int balance;
-    public int highscore;
-    public string encryptedPassword;
-}
-
+    public class PlayerData
+    {
+        public string nickname;
+        public int balance;
+        public int highscore;
+        public string encryptedPassword;
+    }
 }
